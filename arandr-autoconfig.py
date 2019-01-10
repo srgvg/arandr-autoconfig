@@ -5,49 +5,80 @@ import time
 import os.path
 import subprocess
 import re
+import base64
+import hashlib
+import datetime
+
+
+def timestamp(ts = None):
+
+    if ts:
+        ts = int(ts)
+    else:
+        ts = time.time()
+    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def parse_xrandr_output(text):
+
     pattern = re.compile(r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?.*")
     ret = filter(lambda x: pattern.match(x), text.decode("utf-8").splitlines())
-    ret = map(lambda x: pattern.match(x).group(1), ret)
-    ret = sorted(ret)
+    ret = map(lambda x: pattern.match(x).group(1,2,3), ret)
+    return sorted(ret, key= lambda x: x[0])
 
-    # now, put the primary screen first, and rotate the ones before it to the
+
+def order_displays(displays):
+
+    # order displays from left to right, top to bottom
+    # smallest return number comes first
+    def _xsort(item):
+        pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
+        x, y = pattern.match(item[2]).group(1,2)
+        x, y = int(x), int(y)
+        order = x + 10000 * y
+        return order
+
+    ret = sorted(displays, key=_xsort)
+    # now, keep the primary screen first, and rotate the ones before it to the
     # end
-    for item in ret:
-        if item[1] != "primary":
-            ret.append(ret.pop(0))
-        else:
+    for item in displays:
+        if item[1] == "primary":
             break
+        else:
+            ret.append(ret.pop(0))
     return ret
 
 
 def current_connected_displays():
+
     proc = subprocess.run(["xrandr"], stdout=subprocess.PIPE)
     output = proc.stdout
     ret = parse_xrandr_output(output)
     return ret
 
 
+def get_edid():
+
+    def _hash(string):
+        hasher = hashlib.sha1(string)
+        return base64.urlsafe_b64encode(hasher.digest()).decode("utf-8")[:10]
+
+    _xrandr = """xrandr -q --verbose | awk '/^[^ ]+ (dis)?connected / { DEV=$1; } $1 ~ /^[a-f0-9]+$/ { ID[DEV] = ID[DEV] $1 } END { for (X in ID) { print X "," ID[X]; } }'"""
+    process = subprocess.Popen(_xrandr, stdout=subprocess.PIPE, shell=True)
+    output, error = process.communicate()
+    dispedid = output.decode("utf-8").splitlines()
+    dispedid = (x.split(",") for x in dispedid)
+    dispedid = dict((x,_hash(y.encode("utf-8"))) for x, y in dispedid)
+    return dispedid
+
+
+
 def script_name(displays):
+    edid = get_edid()
+    displays = [x[0] + "_" + edid[x[0]] for x in displays]
     return os.path.expanduser(
         os.path.join("~", ".screenlayout", "_".join(displays) + ".sh")
     )
-
-
-def run_script(path):
-    try:
-        subprocess.run([path])
-        return True
-    except Exception as e:
-        print("Could not run script:", e)
-        return False
-
-
-def set_xrandr_with_script(path):
-    if not run_script(path):
-        subprocess.run(["xrandr", "-s", "0"])
 
 
 def write_xresource(displays):
@@ -64,8 +95,10 @@ def write_xresource(displays):
 
 """
 
+    displays = order_displays(displays)
     index = 0
-    for displayname in displays:
+    for display in displays:
+        displayname=display[0]
         data = data + "\ni3.output.{}: {}".format(index, displayname)
         if index == 0:
             data = data + "\ni3.output.primary: {}".format(displayname)
@@ -83,10 +116,10 @@ def write_xresource(displays):
     subprocess.run(["xrdb", os.path.expanduser("-I$HOME"),os.path.expanduser("~/.Xresources")], stdout=subprocess.PIPE)
     subprocess.run(["i3-msg", "reload"], stdout=subprocess.PIPE)
 
+
 def loop(post, once):
 
     if once:
-        print("ONCE")
         new = current_connected_displays()
         handle_x(new, post)
     else:
@@ -98,15 +131,30 @@ def loop(post, once):
                 handle_x(new, post)
             time.sleep(1)
 
+
+def run_script(path):
+
+    try:
+        subprocess.run([path])
+    except Exception:
+        print(timestamp(), "Could not run script:", path)
+        return False
+    return True
+
+
 def handle_x(displays, post):
 
-    script = script_name(displays)
-    print("changed:", displays, ", calling:", script)
-    set_xrandr_with_script(script)
+    arandr_script = script_name(displays)
+    if not run_script(arandr_script):
+        pass
+
+    displays = current_connected_displays()
     write_xresource(displays)
     if post:
-        #print("calling post:", post)
+        print(timestamp(), " new:", displays, ", called", arandr_script, ", running post: ", post)
         run_script(post)
+    else:
+        print(timestamp(), " new:", displays, ", called:", arandr_script)
 
 
 @click.option("--post", default=None, help="program to run after a change")
@@ -114,7 +162,7 @@ def handle_x(displays, post):
 @click.command()
 def main(post, once):
     if not once:
-        instance = tendo.singleton.SingleInstance()
+        instance = tendo.singleton.SingleInstance() #NOQA
     loop(post, once)
 
 
