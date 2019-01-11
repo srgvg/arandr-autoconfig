@@ -10,6 +10,13 @@ import hashlib
 import datetime
 
 
+def _debug(msg):
+
+    msg = str(msg)
+    message = [str(timestamp()), "DEBUG", msg]
+    print (" ".join(message))
+
+
 def timestamp(ts = None):
 
     if ts:
@@ -32,11 +39,14 @@ def order_displays(displays):
     # order displays from left to right, top to bottom
     # smallest return number comes first
     def _xsort(item):
-        pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
-        x, y = pattern.match(item[2]).group(1,2)
-        x, y = int(x), int(y)
-        order = x + 10000 * y
-        return order
+        if item[2]:
+            pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
+            x, y = pattern.match(item[2]).group(1,2)
+            x, y = int(x), int(y)
+            order = x + 10000 * y
+            return order
+        else:
+            return 0
 
     ret = sorted(displays, key=_xsort)
     # now, keep the primary screen first, and rotate the ones before it to the
