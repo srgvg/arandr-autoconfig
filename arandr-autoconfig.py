@@ -47,15 +47,16 @@ def order_displays(displays):
             return order
         else:
             return 0
-
     ret = sorted(displays, key=_xsort)
-    # now, keep the primary screen first, and rotate the ones before it to the
-    # end
-    for item in displays:
-        if item[1] == "primary":
-            break
-        else:
-            ret.append(ret.pop(0))
+
+    ## now, keep the primary screen first, and rotate the ones before it to the
+    ## end
+    #for item in displays:
+    #    if item[1] == "primary":
+    #        break
+    #    else:
+    #        ret.append(ret.pop(0))
+
     return ret
 
 
