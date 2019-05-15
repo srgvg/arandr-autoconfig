@@ -43,28 +43,31 @@ def order_displays(displays):
             pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
             x, y = pattern.match(item[2]).group(1,2)
             x, y = int(x), int(y)
-            order = x + 10000 * y
+            #order = x + 10000 * y
+            # order displays from left to right, top to bottom
+            order = x
             return order
         else:
             return 0
     ret = sorted(displays, key=_xsort)
 
-    ## now, keep the primary screen first, and rotate the ones before it to the
-    ## end
-    #for item in displays:
-    #    if item[1] == "primary":
-    #        break
-    #    else:
-    #        ret.append(ret.pop(0))
-
+    # now, keep the primary screen first, and rotate the ones before it to the
+    # end
+    for item in ret.copy():
+        if item[1] == "primary":
+            break
+        else:
+            ret.append(ret.pop(0))
     return ret
 
 
-def current_connected_displays():
+def current_connected_displays(primary=False):
 
     proc = subprocess.run(["xrandr"], stdout=subprocess.PIPE)
     output = proc.stdout
     ret = parse_xrandr_output(output)
+    if primary:
+        ret = order_displays(ret)
     return ret
 
 
@@ -106,7 +109,6 @@ def write_xresource(displays):
 
 """
 
-    displays = order_displays(displays)
     index = 0
     for display in displays:
         displayname=display[0]
@@ -156,16 +158,17 @@ def run_script(path):
 def handle_x(displays, post):
 
     arandr_script = script_name(displays)
-    if not run_script(arandr_script):
-        pass
 
-    displays = current_connected_displays()
-    write_xresource(displays)
     if post:
-        print(timestamp(), " new:", displays, ", called", arandr_script, ", running post: ", post)
-        run_script(post)
+        print(timestamp(), " new:", displays, ", calling", arandr_script, ", running post: ", post)
     else:
-        print(timestamp(), " new:", displays, ", called:", arandr_script)
+        print(timestamp(), " new:", displays, ", calling:", arandr_script)
+
+    if run_script(arandr_script):
+        displays = current_connected_displays(primary=True)
+        write_xresource(displays)
+        if post:
+            run_script(post)
 
 
 @click.option("--post", default=None, help="program to run after a change")
