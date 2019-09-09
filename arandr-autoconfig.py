@@ -112,6 +112,8 @@ def write_xresource(displays):
     index = 0
     for display in displays:
         displayname=display[0]
+        if not display[2]:
+            continue
         data = data + "\ni3.output.{}: {}".format(index, displayname)
         if index == 0:
             data = data + "\ni3.output.primary: {}".format(displayname)
@@ -120,6 +122,8 @@ def write_xresource(displays):
         data = data + "\n"
         index = index + 1
     data = data + "\n"
+
+    print(data)
 
     f = open(xresourcefile, "w")
     f.write(data)
@@ -159,16 +163,18 @@ def handle_x(displays, post):
 
     arandr_script = script_name(displays)
 
-    if post:
-        print(timestamp(), " new:", displays, ", calling", arandr_script, ", running post: ", post)
-    else:
-        print(timestamp(), " new:", displays, ", calling:", arandr_script)
-
+    print(timestamp(), " new:", displays, ", calling", arandr_script)
     if run_script(arandr_script):
+
         displays = current_connected_displays(primary=True)
+        print(timestamp(), " now:", displays, ", updating i3 Xresources")
         write_xresource(displays)
+
         if post:
+            print(timestamp(), " running post: ", post)
             run_script(post)
+
+    print(timestamp(), "finished")
 
 
 @click.option("--post", default=None, help="program to run after a change")
