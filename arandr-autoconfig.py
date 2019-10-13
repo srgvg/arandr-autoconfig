@@ -106,22 +106,38 @@ def write_xresource(displays):
 
 ! output index 0 is the primary monitor, hence i3.output.0 == i3.output.primary
 ! output index 1 is the first secondary monitor, hence i3.output.1 == i3.output.secondary
+! output index 2 is the second secondary monitor, i3.output.2 is the third monitor
+
+! if there is just a single monitor, all indexes point to the first
+! if there are only two monitors, 0 and 1 point to the first and 2 points to the third
 
 """
 
-    index = 0
+    # remove display from list if not connected
+    _displays=[]
     for display in displays:
-        displayname=display[0]
-        if not display[2]:
-            continue
-        data = data + "\ni3.output.{}: {}".format(index, displayname)
-        if index == 0:
-            data = data + "\ni3.output.primary: {}".format(displayname)
-        elif index == 1:
-            data = data + "\ni3.output.secondary: {}".format(displayname)
-        data = data + "\n"
-        index = index + 1
-    data = data + "\n"
+        if display[2]:
+            _displays += [display]
+    displays = _displays
+
+    numdisplays = len(displays)
+    if numdisplays >= 1:
+        data += "\ni3.output.0: {}".format(displays[0][0])
+        data += "\ni3.output.primary: {}".format(displays[0][0])
+        data += "\n"
+        if numdisplays == 2:
+            data += "\ni3.output.1: {}".format(displays[0][0])
+            data += "\ni3.output.secondary: {}".format(displays[0][0])
+            data += "\n"
+            data += "\ni3.output.2: {}".format(displays[1][0])
+        elif numdisplays >= 3:
+            data += "\ni3.output.1: {}".format(displays[1][0])
+            data += "\ni3.output.secondary: {}".format(displays[1][0])
+            data += "\n"
+            data += "\ni3.output.2: {}".format(displays[2][0])
+    else:
+        raise(Exception)
+    data += "\n"
 
     print(data)
 
