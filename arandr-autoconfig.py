@@ -31,7 +31,26 @@ def parse_xrandr_output(text):
     pattern = re.compile(r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?.*")
     ret = filter(lambda x: pattern.match(x), text.decode("utf-8").splitlines())
     ret = map(lambda x: pattern.match(x).group(1,2,3), ret)
-    return sorted(ret, key= lambda x: x[0])
+    displays = sorted(ret, key= lambda x: x[0])
+    dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
+    displayslist=[]
+    for display in displays:
+        display = list(display)
+        dimension = dimpattern.match(display[2])
+        w, h, x, y = dimension.group(1,2,3,4)
+        ratio = int(w) / int(h)
+        if ratio > 2:
+            display.append('ultrawide')
+            display.append('splith')
+        elif ratio > 0:
+            display.append('landscape')
+            display.append('tabbed')
+        else:
+            display.append('portrait')
+            display.append('splitv')
+        displayslist.append(display)
+    displays = displayslist
+    return displays
 
 
 def order_displays(displays):
@@ -109,7 +128,7 @@ def write_xresource(displays):
 ! output index 2 is the second secondary monitor, i3.output.2 is the third monitor
 
 ! if there is just a single monitor, all indexes point to the first
-! if there are only two monitors, 0 and 1 point to the first and 2 points to the third
+! if there are only two monitors, 0 and 1 point to the first and 2 points to the second
 
 """
 
@@ -121,20 +140,27 @@ def write_xresource(displays):
     displays = _displays
 
     numdisplays = len(displays)
+    print(numdisplays, displays)
     if numdisplays >= 1:
-        data += "\ni3.output.0: {}".format(displays[0][0])
-        data += "\ni3.output.primary: {}".format(displays[0][0])
-        data += "\n"
-        if numdisplays == 2:
-            data += "\ni3.output.1: {}".format(displays[0][0])
-            data += "\ni3.output.secondary: {}".format(displays[0][0])
+        data += "\ni3.output.0.name: {}".format(displays[0][0])
+        data += "\ni3.output.0.primary: {}".format(displays[0][1])
+        data += "\ni3.output.0.geometry: {}".format(displays[0][2])
+        data += "\ni3.output.0.orientation: {}".format(displays[0][3])
+        data += "\ni3.output.0.layout: {}".format(displays[0][4])
+        if numdisplays >= 2:
             data += "\n"
-            data += "\ni3.output.2: {}".format(displays[1][0])
+            data += "\ni3.output.1.name: {}".format(displays[1][0])
+            data += "\ni3.output.1.primary: {}".format(displays[1][1])
+            data += "\ni3.output.1.geometry: {}".format(displays[1][2])
+            data += "\ni3.output.1.orientation: {}".format(displays[1][3])
+            data += "\ni3.output.1.layout: {}".format(displays[1][4])
         elif numdisplays >= 3:
-            data += "\ni3.output.1: {}".format(displays[1][0])
-            data += "\ni3.output.secondary: {}".format(displays[1][0])
             data += "\n"
-            data += "\ni3.output.2: {}".format(displays[2][0])
+            data += "\ni3.output.2.name: {}".format(displays[2][0])
+            data += "\ni3.output.2.primary: {}".format(displays[2][1])
+            data += "\ni3.output.2.geometry: {}".format(displays[2][2])
+            data += "\ni3.output.2.orientation: {}".format(displays[2][3])
+            data += "\ni3.output.2.layout: {}".format(displays[2][4])
     else:
         raise(Exception)
     data += "\n"
@@ -162,7 +188,7 @@ def loop(post, once):
             if new != previous:
                 previous = new
                 handle_x(new, post)
-            time.sleep(1)
+            time.sleep(3)
 
 
 def run_script(path):
