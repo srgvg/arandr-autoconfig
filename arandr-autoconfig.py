@@ -14,10 +14,10 @@ def _debug(msg):
 
     msg = str(msg)
     message = [str(timestamp()), "DEBUG", msg]
-    print (" ".join(message))
+    print(" ".join(message))
 
 
-def timestamp(ts = None):
+def timestamp(ts=None):
 
     if ts:
         ts = int(ts)
@@ -36,18 +36,22 @@ def parse_xrandr_output(text):
     displayslist=[]
     for display in displays:
         display = list(display)
-        dimension = dimpattern.match(display[2])
-        w, h, x, y = dimension.group(1,2,3,4)
-        ratio = int(w) / int(h)
-        if ratio > 2:
-            display.append('ultrawide')
-            display.append('splith')
-        elif ratio > 0:
-            display.append('landscape')
-            display.append('tabbed')
-        else:
-            display.append('portrait')
-            display.append('splitv')
+        try:
+            dimension = dimpattern.match(display[2])
+            w, h, x, y = dimension.group(1,2,3,4)
+            ratio = int(w) / int(h)
+            if ratio > 2:
+                display.append('ultrawide')
+                display.append('splith')
+            elif ratio > 0:
+                display.append('landscape')
+                display.append('tabbed')
+            else:
+                display.append('portrait')
+                display.append('splitv')
+        except TypeError:
+            display.append(None)
+            display.append(None)
         displayslist.append(display)
     displays = displayslist
     return displays
@@ -62,14 +66,15 @@ def order_displays(displays):
             pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
             x, y = pattern.match(item[2]).group(1,2)
             x, y = int(x), int(y)
-            #order = x + 10000 * y
-            # order displays from left to right, top to bottom
+            # order displays from left to right
+            #order = x + 10000 * y # top to bottom
             order = x
             return order
         else:
             return 0
+    print("DISPLAYS: ", displays)
     ret = sorted(displays, key=_xsort)
-
+    print("ORDERED:  ", ret)
     # now, keep the primary screen first, and rotate the ones before it to the
     # end
     for item in ret.copy():
@@ -140,29 +145,37 @@ def write_xresource(displays):
     displays = _displays
 
     numdisplays = len(displays)
-    print(numdisplays, displays)
-    if numdisplays >= 1:
-        data += "\ni3.output.0.name: {}".format(displays[0][0])
-        data += "\ni3.output.0.primary: {}".format(displays[0][1])
-        data += "\ni3.output.0.geometry: {}".format(displays[0][2])
-        data += "\ni3.output.0.orientation: {}".format(displays[0][3])
-        data += "\ni3.output.0.layout: {}".format(displays[0][4])
-        if numdisplays >= 2:
-            data += "\n"
-            data += "\ni3.output.1.name: {}".format(displays[1][0])
-            data += "\ni3.output.1.primary: {}".format(displays[1][1])
-            data += "\ni3.output.1.geometry: {}".format(displays[1][2])
-            data += "\ni3.output.1.orientation: {}".format(displays[1][3])
-            data += "\ni3.output.1.layout: {}".format(displays[1][4])
-        elif numdisplays >= 3:
-            data += "\n"
-            data += "\ni3.output.2.name: {}".format(displays[2][0])
-            data += "\ni3.output.2.primary: {}".format(displays[2][1])
-            data += "\ni3.output.2.geometry: {}".format(displays[2][2])
-            data += "\ni3.output.2.orientation: {}".format(displays[2][3])
-            data += "\ni3.output.2.layout: {}".format(displays[2][4])
+
+    display0 = displays[0]
+    if numdisplays == 1:
+        display1 = displays[0]
+        display2 = displays[0]
+    elif numdisplays == 2:
+        display1 = displays[0]
+        display2 = displays[1]
+    elif numdisplays >= 3:
+        display1 = displays[1]
+        display2 = displays[2]
     else:
         raise(Exception)
+
+    data += "\ni3.output.0.name: {}".format(display0[0])
+    data += "\ni3.output.0.primary: {}".format(display0[1])
+    data += "\ni3.output.0.geometry: {}".format(display0[2])
+    data += "\ni3.output.0.orientation: {}".format(display0[3])
+    data += "\ni3.output.0.layout: {}".format(display0[4])
+    data += "\n"
+    data += "\ni3.output.1.name: {}".format(display1[0])
+    data += "\ni3.output.1.primary: {}".format(display1[1])
+    data += "\ni3.output.1.geometry: {}".format(display1[2])
+    data += "\ni3.output.1.orientation: {}".format(display1[3])
+    data += "\ni3.output.1.layout: {}".format(display1[4])
+    data += "\n"
+    data += "\ni3.output.2.name: {}".format(display2[0])
+    data += "\ni3.output.2.primary: {}".format(display2[1])
+    data += "\ni3.output.2.geometry: {}".format(display2[2])
+    data += "\ni3.output.2.orientation: {}".format(display2[3])
+    data += "\ni3.output.2.layout: {}".format(display2[4])
     data += "\n"
 
     print(data)
