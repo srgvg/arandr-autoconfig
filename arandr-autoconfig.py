@@ -28,27 +28,35 @@ def timestamp(ts=None):
 
 def parse_xrandr_output(text):
 
-    pattern = re.compile(r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?.*")
+    pattern = re.compile(r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?(left|right)?.*")
     ret = filter(lambda x: pattern.match(x), text.decode("utf-8").splitlines())
-    ret = map(lambda x: pattern.match(x).group(1,2,3), ret)
+    ret = map(lambda x: pattern.match(x).group(1,2,3,4), ret)
     displays = sorted(ret, key= lambda x: x[0])
     dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
     displayslist=[]
+
     for display in displays:
         display = list(display)
         try:
             dimension = dimpattern.match(display[2])
             w, h, x, y = dimension.group(1,2,3,4)
             ratio = int(w) / int(h)
+            orientation=display.pop()
             if ratio > 2:
-                display.append('ultrawide')
-                display.append('splith')
+                if orientation in ("left", "right"): # portrait
+                    display.append('portrait')
+                    display.append('splitv')
+                else:
+                    display.append('ultrawide')
+                    display.append('splith')
             elif ratio > 0:
-                display.append('landscape')
-                display.append('tabbed')
-            else:
-                display.append('portrait')
-                display.append('splitv')
+                if orientation in ("left", "right"): # portrait
+                    display.append('portrait')
+                    display.append('splitv')
+                else:
+                    display.append('landscape')
+                    display.append('tabbed')
+
         except TypeError:
             display.append(None)
             display.append(None)
@@ -63,18 +71,15 @@ def order_displays(displays):
     # smallest return number comes first
     def _xsort(item):
         if item[2]:
-            pattern = re.compile(r"[0-9x]+\+([0-9]+)\+([0-9]+)+")
-            x, y = pattern.match(item[2]).group(1,2)
-            x, y = int(x), int(y)
-            # order displays from left to right
-            #order = x + 10000 * y # top to bottom
-            order = x
+            dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
+            dimension = dimpattern.match(item[2])
+            [w, h, x, y] = [ int(_) for _ in dimension.group(1,2,3,4)]
+            order = x + w + y
             return order
         else:
             return 0
-    print("DISPLAYS: ", displays)
     ret = sorted(displays, key=_xsort)
-    print("ORDERED:  ", ret)
+    print(timestamp(), " Ordered:     ", ret)
     # now, keep the primary screen first, and rotate the ones before it to the
     # end
     for item in ret.copy():
@@ -124,17 +129,10 @@ def write_xresource(displays):
     xresourcefile = os.path.expanduser(os.path.join("~", ".Xresources.d", "i3"))
     data = """
 ! ~/.Xresources.d/i3
-
 ! Make sure to include this file from ~/.Xresources by adding
 ! #include "~/.Xresources.d/i3"
-
-! output index 0 is the primary monitor, hence i3.output.0 == i3.output.primary
-! output index 1 is the first secondary monitor, hence i3.output.1 == i3.output.secondary
-! output index 2 is the second secondary monitor, i3.output.2 is the third monitor
-
 ! if there is just a single monitor, all indexes point to the first
 ! if there are only two monitors, 0 and 1 point to the first and 2 points to the second
-
 """
 
     # remove display from list if not connected
@@ -159,6 +157,11 @@ def write_xresource(displays):
     else:
         raise(Exception)
 
+    for display in displays:
+        if display[1] == "primary":
+            primary = display[0]
+            break
+
     data += "\ni3.output.0.name: {}".format(display0[0])
     data += "\ni3.output.0.primary: {}".format(display0[1])
     data += "\ni3.output.0.geometry: {}".format(display0[2])
@@ -177,6 +180,12 @@ def write_xresource(displays):
     data += "\ni3.output.2.orientation: {}".format(display2[3])
     data += "\ni3.output.2.layout: {}".format(display2[4])
     data += "\n"
+    data += "\ni3.output.primary: {}".format(primary)
+    if numdisplays >= 2:
+        data += "\ni3.output.secondary: {}".format(display1[0])
+        if numdisplays >= 3:
+            data += "\ni3.output.third: {}".format(display2[0])
+        data += "\n"
 
     print(data)
 
@@ -209,7 +218,7 @@ def run_script(path):
     try:
         subprocess.run([path])
     except Exception:
-        print(timestamp(), "Could not run script:", path)
+        print(timestamp(), " Not found:   ", path)
         return False
     return True
 
@@ -218,18 +227,22 @@ def handle_x(displays, post):
 
     arandr_script = script_name(displays)
 
-    print(timestamp(), " new:", displays, ", calling", arandr_script)
+    print("########################################")
+    print("")
+    print(timestamp(), " New:        ", displays)
+    print(timestamp(), " Executing:  ", arandr_script)
     if run_script(arandr_script):
 
         displays = current_connected_displays(primary=True)
-        print(timestamp(), " now:", displays, ", updating i3 Xresources")
+        print(timestamp(), " Updating i3 Xresources")
         write_xresource(displays)
 
         if post:
-            print(timestamp(), " running post: ", post)
+            print(timestamp(), " Executing:    ", post)
             run_script(post)
 
-    print(timestamp(), "finished")
+    print(timestamp(), " Finished.")
+    print("")
 
 
 @click.option("--post", default=None, help="program to run after a change")
