@@ -74,7 +74,9 @@ def order_displays(displays):
             dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
             dimension = dimpattern.match(item[2])
             [w, h, x, y] = [ int(_) for _ in dimension.group(1,2,3,4)]
-            order = x + w + y
+            #order = x + w + y
+            #print(item[0], "\t", w, h, x, y, "\t", order, "\t", (y+1)*x)
+            order = (y + 1) * x
             return order
         else:
             return 0
