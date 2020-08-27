@@ -23,39 +23,41 @@ def timestamp(ts=None):
         ts = int(ts)
     else:
         ts = time.time()
-    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def parse_xrandr_output(text):
 
-    pattern = re.compile(r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?(left|right)?.*")
+    pattern = re.compile(
+        r"^([\w-]+)\sconnected\s(primary)?\s?([0-9+x]+)?\s?(left|right)?.*"
+    )
     ret = filter(lambda x: pattern.match(x), text.decode("utf-8").splitlines())
-    ret = map(lambda x: pattern.match(x).group(1,2,3,4), ret)
-    displays = sorted(ret, key= lambda x: x[0])
+    ret = map(lambda x: pattern.match(x).group(1, 2, 3, 4), ret)
+    displays = sorted(ret, key=lambda x: x[0])
     dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
-    displayslist=[]
+    displayslist = []
 
     for display in displays:
         display = list(display)
         try:
             dimension = dimpattern.match(display[2])
-            w, h, x, y = dimension.group(1,2,3,4)
+            w, h, x, y = dimension.group(1, 2, 3, 4)
             ratio = int(w) / int(h)
-            orientation=display.pop()
+            orientation = display.pop()
             if ratio > 2:
-                if orientation in ("left", "right"): # portrait
-                    display.append('portrait')
-                    display.append('splitv')
+                if orientation in ("left", "right"):  # portrait
+                    display.append("portrait")
+                    display.append("splitv")
                 else:
-                    display.append('ultrawide')
-                    display.append('splith')
+                    display.append("ultrawide")
+                    display.append("splith")
             elif ratio > 0:
-                if orientation in ("left", "right"): # portrait
-                    display.append('portrait')
-                    display.append('splitv')
+                if orientation in ("left", "right"):  # portrait
+                    display.append("portrait")
+                    display.append("splitv")
                 else:
-                    display.append('landscape')
-                    display.append('tabbed')
+                    display.append("landscape")
+                    display.append("tabbed")
 
         except TypeError:
             display.append(None)
@@ -73,13 +75,13 @@ def order_displays(displays):
         if item[2]:
             dimpattern = re.compile(r"([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)")
             dimension = dimpattern.match(item[2])
-            [w, h, x, y] = [ int(_) for _ in dimension.group(1,2,3,4)]
-            #order = x + w + y
-            #print(item[0], "\t", w, h, x, y, "\t", order, "\t", (y+1)*x)
+            [w, h, x, y] = [int(_) for _ in dimension.group(1, 2, 3, 4)]
             order = (y + 1) * x
+            # print(item[0], "\t", w, h, x, y, "\t", order, "\t", (y+1)*x)
             return order
         else:
             return 0
+
     ret = sorted(displays, key=_xsort)
     print(timestamp(), " Ordered:     ", ret)
     # now, keep the primary screen first, and rotate the ones before it to the
@@ -103,7 +105,6 @@ def current_connected_displays(primary=False):
 
 
 def get_edid():
-
     def _hash(string):
         hasher = hashlib.sha1(string)
         return base64.urlsafe_b64encode(hasher.digest()).decode("utf-8")[:10]
@@ -113,9 +114,8 @@ def get_edid():
     output, error = process.communicate()
     dispedid = output.decode("utf-8").splitlines()
     dispedid = (x.split(",") for x in dispedid)
-    dispedid = dict((x,_hash(y.encode("utf-8"))) for x, y in dispedid)
+    dispedid = dict((x, _hash(y.encode("utf-8"))) for x, y in dispedid)
     return dispedid
-
 
 
 def script_name(displays):
@@ -138,7 +138,7 @@ def write_xresource(displays):
 """
 
     # remove display from list if not connected
-    _displays=[]
+    _displays = []
     for display in displays:
         if display[2]:
             _displays += [display]
@@ -157,7 +157,7 @@ def write_xresource(displays):
         display1 = displays[1]
         display2 = displays[2]
     else:
-        raise(Exception)
+        raise (Exception)
 
     for display in displays:
         if display[1] == "primary":
@@ -196,7 +196,10 @@ def write_xresource(displays):
     f.close()
 
     # Reloading X server resource database utility
-    subprocess.run(["xrdb", os.path.expanduser("-I$HOME"),os.path.expanduser("~/.Xresources")], stdout=subprocess.PIPE)
+    subprocess.run(
+        ["xrdb", os.path.expanduser("-I$HOME"), os.path.expanduser("~/.Xresources")],
+        stdout=subprocess.PIPE,
+    )
     subprocess.run(["i3-msg", "reload"], stdout=subprocess.PIPE)
 
 
@@ -252,7 +255,7 @@ def handle_x(displays, post):
 @click.command()
 def main(post, once):
     if not once:
-        instance = tendo.singleton.SingleInstance() #NOQA
+        instance = tendo.singleton.SingleInstance()  # NOQA
     loop(post, once)
 
 
