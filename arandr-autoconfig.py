@@ -183,11 +183,16 @@ def write_xresource(displays):
     data += "\ni3.output.2.layout: {}".format(display2[4])
     data += "\n"
     data += "\ni3.output.primary: {}".format(primary)
-    if numdisplays >= 2:
+    if numdisplays == 1:
+        data += "\ni3.output.secondary: HDMI7"
+        data += "\ni3.output.third: HDMI7"
+    elif numdisplays == 2:
+        data += "\ni3.output.secondary: {}".format(display2[0])
+        data += "\ni3.output.third: HDMI7"
+    else:
         data += "\ni3.output.secondary: {}".format(display1[0])
-        if numdisplays >= 3:
-            data += "\ni3.output.third: {}".format(display2[0])
-        data += "\n"
+        data += "\ni3.output.third: {}".format(display2[0])
+    data += "\n"
 
     print(data)
 
